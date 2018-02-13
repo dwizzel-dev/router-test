@@ -2,8 +2,8 @@
 
 namespace Dwizzel\Routing;
 
-error_reporting(E_ERROR);
-Header('Content-type: text/html');
+error_reporting(E_ALL);
+//Header('Content-type: text/html');
 
 //------------------------------------------------------------------
 
@@ -125,22 +125,22 @@ class MiddleWare{
 
 class OuterWare{    
 
-    public function in(Request $request){
+    public function in(Response $response){
         Debug::show(__METHOD__);
-        var_dump($request);
-        $request->{'in'} = true;
+        $response->set('in', true);
+        return $response;
     }
 
-    public function middle(Request $request){
+    public function middle(Response $response){
         Debug::show(__METHOD__);
-        var_dump($request);
-        $request->{'middle'} = true;
+        $response->set('middle', true);
+        return $response;
     }
 
-    public function out(Request $request){
+    public function out(Response $response){
         Debug::show(__METHOD__);
-        var_dump($request);
-        $request->{'out'} = true;
+        $response->set('out', true);
+        return $response;
     }
 
     
@@ -150,7 +150,128 @@ class OuterWare{
 
 //------------------------------------------------------------------
 
-Class Request{
+class Json{
+    
+	static public function encode($data){
+		if (function_exists('json_encode')) {
+			$data = json_encode($data, JSON_UNESCAPED_UNICODE);
+			if(json_last_error() != JSON_ERROR_NONE){
+				return json_last_error();
+			}
+			return $data;
+		}
+		return false;
+	}
+	static public function decode($json, $assoc = false){
+		if (function_exists('json_decode')) {
+			$data = json_decode($json, true);
+			if(json_last_error() != JSON_ERROR_NONE){
+				return json_last_error();
+			}
+			return $data;
+		}
+		return false;
+	}
+}
+
+//------------------------------------------------------------------
+
+class Response{
+
+    private $_data = array();
+    private $_headers = array();
+    private $_errors = array();
+
+    public function __construct(){
+        
+    }
+
+    public function set($key, $value){
+        $this->_data[$key] = $value;
+    }
+
+    public function get($key){
+        if(isset($this->_data[$key])){
+            return $this->_data[$key];
+        }
+        return false;
+    }
+
+    public function sets($values){
+		if(is_array($values)){
+			$this->_data = $this->recursiveSet($this->_data, $values);
+			return true;	
+		}
+		return false;
+    }
+    
+    private function recursiveSet($arr, $values){
+		if(is_array($values)){
+			foreach($values as $k=>$v){	
+				if(is_array($v)){
+					$arr[$k] = array();
+					$this->recursiveSet($arr[$k], $v);
+				}else{
+					$arr[$k] = $v;
+				}
+			}
+        }
+        return $arr;
+    }
+	
+	public function clear($bErrors = false) {
+        $this->_data = array();
+        if($bErrors){
+            $this->_errors = array();
+        }
+	}
+	
+	public function addError($errmsg, $errno = 0) {
+		array_push($this->_errors, array(
+			'code' => $errno,
+			'message' => $errmsg
+		));
+    }
+    
+    public function sendHeader($html = false) {
+		if(!headers_sent()) {
+            $this->addHeader('Cache-Control:no-cache, private');
+            if($html){
+                $this->addHeader('Content-Type: text/html; charset=utf-8');
+            }else{
+                $this->addHeader('Content-Type: application/json; charset=utf-8');
+            }
+			foreach ($this->_headers as $header) {
+				header($header, true);
+			}
+		}
+	}
+
+    public function addHeader($header) {
+		$this->_headers[] = $header;
+	}
+
+    public function output(){
+        if(count($this->_errors)){
+			$this->addHeader('HTTP/1.0 400 Bad Request');
+			$this->_data = $this->_errors;
+		}
+		$encoded = Json::encode($this->_data);
+		if($encoded === false || is_numeric($encoded)){ 
+            $this->clear(true);
+            $this->addError('json error: '.$encoded);
+            $this->output();
+           	return false;
+		}
+        return $encoded;
+    }
+
+}
+
+
+//------------------------------------------------------------------
+
+class Request{
 
     private $_data = array();
     private $_method;        
@@ -170,8 +291,8 @@ Class Request{
         return false;
     }
 
-    public function set($key){
-        $this->_data = $value;
+    public function set($key, $value){
+        $this->_data[$key] = $value;
     }
 
     public function get($key){
@@ -179,6 +300,10 @@ Class Request{
             return $this->_data[$key];
         }
         return false;
+    }
+
+    public function getData(){
+        return $this->_data;
     }
 
     public function data($method = 'get'){
@@ -207,33 +332,24 @@ Class Request{
 
 //------------------------------------------------------------------
 
-Class Router{
+class Router{
 
-    protected static $inst;
-    protected static $request;
-    /*
-    // php 7
-    protected static $middleware = [
-        'out' => MiddleWare::class
-    ];
-    */
-    // php 5.4
-    protected static $outerware = array(
-        'in' => 'OuterWare',
-        'middle' => 'OuterWare',
-        'out' => 'OuterWare'
-    );
+    protected static $inst = null;
+    protected static $request = null;
+    protected static $response = null;
 
     public function __construct(){
         Debug::show(__METHOD__);
     }
 
     public static function redirect($url){
+        //Debug::show(__METHOD__);
         Header('Location: '.$url);
         exit();
     }
 
     protected static function self($request = null){
+        //Debug::show(__METHOD__);
         self::$request = $request;
         if (self::$inst === null){
             self::$inst = new Router;
@@ -242,38 +358,41 @@ Class Router{
     }
 
     private function cleanUrl($value){
+        //Debug::show(__METHOD__);
         return ($value != '');
     }
 
     private function match($url, $path){
+        //Debug::show(__METHOD__);
         $paths = array_filter(explode('/', $path), 'self::cleanUrl');
-        $regs = array_filter(explode('/', $url), array(self, cleanUrl));
+        $regs = array_filter(explode('/', $url), 'self::cleanUrl');
         if(count($paths) != count($regs)){
-            return false;
+            return;
         }
-        $request = new Request();
+        $request = new Request;
         var_dump(array($paths, $regs));    
         foreach($paths as $k=>$v){
             if(!isset($regs[$k])){
-                return false;
+                return;
             }   
             $split = false;
-            Debug::show('VALUE: "'.$v.'" :: "'.$regs[$k].'"');
+            //Debug::show('VALUE: "'.$v.'" :: "'.$regs[$k].'"');
             if(preg_match('/^(.*)\{([a-zA-Z]+)\}(.*)$/', $regs[$k], $split)){
-                Debug::show('REGEX: "/^'.$split[1].'([0-9a-zA-Z]+)'.$split[3].'$/"');
+                //Debug::show('REGEX: "/^'.$split[1].'([0-9a-zA-Z]+)'.$split[3].'$/"');
                 if(preg_match('/^'.$split[1].'([0-9a-zA-Z]+)'.$split[3].'$/', $v, $match)){
                     $request->{$split[2]} = $match[1];
                 }else{
-                    return false;    
+                    return;    
                 }
             }else if($regs[$k] != $v){
-                return false;
+                return;
             }
         }
         return $request;
     }
 
     private function callClassMethod($args){
+        Debug::show(__METHOD__);
         list($class, $method) = explode('@', $args);
         $class = __NAMESPACE__.'\\'.$class; 
         if(method_exists($class, $method)){
@@ -283,6 +402,7 @@ Class Router{
     }
 
     private function callMiddleWare($arr){
+        Debug::show(__METHOD__);
         foreach($arr as $k=>$v){
             list($class, $method) = explode('@', $v);
             $class = __NAMESPACE__.'\\'.$class; 
@@ -293,55 +413,71 @@ Class Router{
                 }
             }
         }
-        return self::$request;
+        return true;
      }
     
     public static function __callStatic($method, $args){
-        Debug::show(__METHOD__);
-        if(self::$request != null){
-            return;
-        }
-        //var_dump($args);
+        //Debug::show(__METHOD__);
         if(strtoupper($method) != $_SERVER['REQUEST_METHOD']){
-            return;
+            return self::$inst;
+        }
+        if(!is_null(self::$request)){
+            return self::$inst;
         }
         //(new Router)->self();
         $url = parse_url($_SERVER['REQUEST_URI']);
         $path = $url['path'];
         $match = $args[0];
         $func = $args[1];
-        self::self(self::match($match, $path));
+        self::self();
+        self::$request = self::$inst->match($match, $path);
         if(self::$request){
+            self::$response = new Response;
             self::$request->data($method);
             if(isset($args[2]) && is_array($args[2])){
-                self::$request = self::callMiddleWare($args[2]);
-                if(self::$request === false){
-                    //return self::$inst;
-                    //return new static;
-                    return;
+                if(!self::$inst->callMiddleWare($args[2])){
+                    return self::$inst;
                 }
             }
-            (is_string($func))? self::callClassMethod($func) : $func(self::$request);
-        }
-        //return self::$inst;
-        //return new static;
-        return;
-    }
-
-    public function chain($name){
-        if(is_array($name)){
-            foreach($name as $v){
-                $class = __NAMESPACE__.'\\'.$outerware[$v];
-                (new self::$class)->{$v}(self::$request);
-            }
-        }else{
-            $class = __NAMESPACE__.'\\'.$outerware[$name];
-            (new self::$class)->{$name}(self::$request);
+            (is_string($func))? self::$inst->callClassMethod($func) : $func(self::$request);
         }
         return self::$inst;
     }
+
+    private function chain($name){
+        Debug::show(__METHOD__);
+        if(is_array($name)){
+            foreach($name as $v){
+                list($class, $method) = explode('@', $v);
+                $class = __NAMESPACE__.'\\'.$class; 
+                self::$response = (new $class)->{$method}(self::$response);
+            }
+        }else{
+            list($class, $method) = explode('@', $name);
+            $class = __NAMESPACE__.'\\'.$class; 
+            self::$response = (new $class)->{$method}(self::$response);
+        }
+        return self::$response;
+    }
+
+    public function end($name = null){
+        //Debug::show(__METHOD__);
+        if(is_null(self::$response)){
+            return self::$inst;
+        }
+        if($name !== null){
+            self::$inst->chain($name);
+        }
+        self::$response->set('done', 'OK');
+        self::$response->sets(self::$request->getData());
+        self::$response->sendHeader(true);
+		echo self::$response->output();
+        exit();
+    }
+
     
     public function __call($method, Array $args){
+        Debug::show(__METHOD__);
         Debug::show('dynamic method "'.$method.'" dont exist');
     }
 
@@ -350,67 +486,35 @@ Class Router{
 //------------------------------------------------------------------
 
 Routes::set('clients', '/clients/');
-Routes::set('clients-0', '/clients/');
-Routes::set('test-0', '/test-0/');
-Routes::set('test-1', '/test-1/');
-Routes::set('test-2', '/test-2/');
 Routes::set('clients-id', '/clients/{id}/');
 Routes::set('clients-account-id', '/clients/{id}/accounts/{accountId}/');
 
 //(new Router)->test();
 
-Router::get('/', 'Controller@index');
+Router::get('/', 'Controller@index')->end();
 
-Router::get('/clients/', 'Controller@all', 
-        ['MiddleWare@auth','MiddleWare@check', 'MiddleWare@process']);
+Router::get('/clients/', 'Controller@all', ['MiddleWare@check', 'MiddleWare@process'])
+    ->end(['OuterWare@in', 'OuterWare@middle', 'OuterWare@out']);
 
 Router::get('/clients/{id}/', function(Request $request){
     Debug::show(__METHOD__);
     var_dump($request);
-}, ['MiddleWare@check', 'MiddleWare@process']);
+}, ['MiddleWare@auth', 'MiddleWare@check', 'MiddleWare@process'])->end('OuterWare@out');
 
 Router::get('/clients/{id}/accounts/{accountId}/', function(Request $request){
     Debug::show(__METHOD__);
     var_dump($request);
-}, ['MiddleWare@verify']);
+}, ['MiddleWare@verify'])->end();
 
 Router::get('/clients/{id}/[a-z]{3}-{accountId}-test/', function(Request $request){
     Debug::show(__METHOD__);
     var_dump($request);
-});
+})->end();
 
 Router::get('/clients/{id}/{accountId}/', function(Request $request){
     Debug::show(__METHOD__);
     var_dump($request);
-});
-
-
-// -- testing -------------------------------
-
-
-
-Router::get('/test-0/', function(Request $request){
-    Debug::show(__METHOD__);
-    var_dump($request);
-});
-
-Router::get('/test-1/', function(Request $request){
-    Debug::show(__METHOD__);
-    var_dump($request);
-}, ['MiddleWare@auth']);
-    //->chain('in')
-    //->chain('middle')
-    //->chain('out');
-
-Router::get('/test-2/', 'Controller@index', ['MiddleWare@auth']);
-    //->chain(array('in', 'middle', 'out'));
-    
-Router::get('/clients-0/', function (Request $request){
-    Debug::show(__METHOD__);
-    var_dump($request);
-}, ['MiddleWare@auth']);
-
-
+})->end();
 
 
 
