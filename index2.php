@@ -258,9 +258,10 @@ Class Router{
                 return false;
             }   
             $split = false;
-            Debug::show('VALUE: "'.$v.'" :: "'.$regs[$k].'"');
+            //Debug::show('VALUE: "'.$v.'" :: "'.$regs[$k].'"');
             if(preg_match('/^(.*)\{([a-zA-Z]+)\}(.*)$/', $regs[$k], $split)){
-                Debug::show('REGEX: "/^'.$split[1].'([0-9a-zA-Z]+)'.$split[3].'$/"');
+                //print_r($split);
+                //Debug::show('REGEX: "/^'.$split[1].'([0-9a-zA-Z]+)'.$split[3].'$/"');
                 if(preg_match('/^'.$split[1].'([0-9a-zA-Z]+)'.$split[3].'$/', $v, $match)){
                     $request->{$split[2]} = $match[1];
                 }else{
@@ -398,12 +399,8 @@ Router::get('/test-1/', function(Request $request){
     Debug::show(__METHOD__);
     var_dump($request);
 }, ['MiddleWare@auth']);
-    //->chain('in')
-    //->chain('middle')
-    //->chain('out');
 
 Router::get('/test-2/', 'Controller@index', ['MiddleWare@auth']);
-    //->chain(array('in', 'middle', 'out'));
     
 Router::get('/clients-0/', function (Request $request){
     Debug::show(__METHOD__);
