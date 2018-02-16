@@ -9,9 +9,9 @@
             "name": "Listen for XDebug",
             "type": "php",
             "request": "launch",
-            "port": 9999,
+            "port": 9000,
             "pathMappings": {
-                "/home/vagrant/Code/test": "C:/Users/Dwizzel/Desktop/dwizzel.dev/projects/laravel/server/test-dwizzel-0/test"
+                "/usr/share/nginx/public/php/router-test": "${workspaceRoot}"
             },
             "log": true
         },

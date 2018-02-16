@@ -27,6 +27,8 @@ server {
         fastcgi_index index.php;
         include fastcgi_params;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        # le port wireless de la machine host de VM pass apr le NAT
+        fastcgi_param REMOTE_ADDR "192.168.0.157";
 
         fastcgi_intercept_errors off;
         fastcgi_buffer_size 16k;

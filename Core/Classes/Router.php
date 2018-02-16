@@ -37,7 +37,7 @@ class Router{
     private function match($url, $path){
         //Debug::show(__METHOD__);
         $paths = array_filter(explode('/', $path), 'self::cleanUrl');
-        $regs = array_filter(explode('/', $url), 'self::cleanUrl');
+        $regs = array_filter(explode('/', $url), array('self', 'cleanUrl'));
         if(count($paths) != count($regs)){
             return;
         }

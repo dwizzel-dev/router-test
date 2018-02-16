@@ -2,6 +2,12 @@
 
 namespace Core\Classes;
 
+//xdebug_get_code_coverage();
+
+//phpinfo();
+
+//throw new \Exception("unable display exception");
+
 require_once('define.php');
 
 Router::get('/', 'Controller@index')->end();
