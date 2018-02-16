@@ -7,6 +7,8 @@
 //basic define
 define('VERSION', '1.0.0');
 define('ENV', 'env');
-//path and directories
-define('BASE_PATH', realpath(dirname(__FILE__)));
-define('CLASS_PATH', BASE_PATH.'/Core/Classes/');
+
+spl_autoload_register(function ($class_name) {
+    $file = str_replace('\\', DIRECTORY_SEPARATOR, $class_name).'.php';
+    (file_exists($file))? require $file : exit('error loading: '.$file);
+});

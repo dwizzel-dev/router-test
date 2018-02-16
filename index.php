@@ -1,15 +1,8 @@
 <?php
 
-use Core\Classes\Router;
-use Core\Classes\Debug;
-use Core\Classes\Request;
+namespace Core\Classes;
 
 require_once('define.php');
-
-require_once(CLASS_PATH.'Router.php');
-require_once(CLASS_PATH.'Debug.php');
-
-//(new Router)->test();
 
 Router::get('/', 'Controller@index')->end();
 

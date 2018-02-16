@@ -2,24 +2,6 @@
 
 namespace Core\Classes;
 
-use Core\Classes\MiddleWare;
-use Core\Classes\Request;
-use Core\Classes\Debug;
-use Core\Classes\Response;
-use Core\Classes\OuterWare;
-use Core\Classes\Controller;
-use Core\Classes\Routes;
-use Core\Classes\Json;
-
-require_once('MiddleWare.php');
-require_once('Request.php');
-require_once('Debug.php');
-require_once('Response.php');
-require_once('OuterWare.php');
-require_once('Controller.php');
-require_once('Routes.php');
-require_once('Json.php');
-
 //------------------------------------------------------------------
 
 class Router{
@@ -163,6 +145,10 @@ class Router{
         self::$response->sendHeader(true);
 		echo self::$response->output();
         exit();
+    }
+
+    public function before($name = null){
+
     }
 
     
