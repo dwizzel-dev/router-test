@@ -2,13 +2,11 @@
 
 namespace Core\Classes;
 
-//------------------------------------------------------------------
-
 class Router{
 
-    protected static $inst = null;
-    protected static $request = null;
-    protected static $response = null;
+    protected static $inst;
+    protected static $request;
+    protected static $response ;
 
     public function __construct(){
         Debug::show(__METHOD__);
@@ -20,9 +18,9 @@ class Router{
         exit();
     }
 
-    protected static function self($request = null){
+    protected static function self($req = null){
         //Debug::show(__METHOD__);
-        self::$request = $request;
+        self::$request = $req;
         if (self::$inst === null){
             self::$inst = new Router;
         }
@@ -34,18 +32,18 @@ class Router{
         return ($value != '');
     }
 
-    private function match($url, $path){
+    private static function match($url, $path){
         //Debug::show(__METHOD__);
         $paths = array_filter(explode('/', $path), 'self::cleanUrl');
         $regs = array_filter(explode('/', $url), array('self', 'cleanUrl'));
         if(count($paths) != count($regs)){
-            return;
+            return null;
         }
         $request = new Request;
         var_dump(array($paths, $regs));    
         foreach($paths as $k=>$v){
             if(!isset($regs[$k])){
-                return;
+                return null;
             }   
             $split = false;
             //Debug::show('VALUE: "'.$v.'" :: "'.$regs[$k].'"');
@@ -54,16 +52,16 @@ class Router{
                 if(preg_match('/^'.$split[1].'([0-9a-zA-Z]+)'.$split[3].'$/', $v, $match)){
                     $request->{$split[2]} = $match[1];
                 }else{
-                    return;    
+                    return null;
                 }
             }else if($regs[$k] != $v){
-                return;
+                return null;
             }
         }
         return $request;
     }
 
-    private function callClassMethod($args){
+    private static function callClassMethod($args){
         Debug::show(__METHOD__);
         list($class, $method) = explode('@', $args);
         $class = __NAMESPACE__.'\\'.$class; 
@@ -73,7 +71,7 @@ class Router{
         }
     }
 
-    private function callMiddleWare($arr){
+    private static function callMiddleWare($arr){
         Debug::show(__METHOD__);
         foreach($arr as $k=>$v){
             list($class, $method) = explode('@', $v);
@@ -102,48 +100,52 @@ class Router{
         $match = $args[0];
         $func = $args[1];
         self::self();
-        self::$request = self::$inst->match($match, $path);
-        if(self::$request){
-            self::$response = new Response;
+        self::$request = self::match($match, $path);
+        if(!is_null(self::$request)){
+            //self::$response = new Response;
             self::$request->data($method);
             if(isset($args[2]) && is_array($args[2])){
-                if(!self::$inst->callMiddleWare($args[2])){
+                if(!self::callMiddleWare($args[2])){
                     return self::$inst;
                 }
             }
-            (is_string($func))? self::$inst->callClassMethod($func) : $func(self::$request);
+            (is_string($func))? self::callClassMethod($func) : $func(self::$request);
         }
         return self::$inst;
     }
 
-    private function chain($name){
+    protected static function chain($name){
         Debug::show(__METHOD__);
         if(is_array($name)){
             foreach($name as $v){
                 list($class, $method) = explode('@', $v);
-                $class = __NAMESPACE__.'\\'.$class; 
+                $class = __NAMESPACE__.'\\'.$class;
                 self::$response = (new $class)->{$method}(self::$response);
             }
         }else{
             list($class, $method) = explode('@', $name);
-            $class = __NAMESPACE__.'\\'.$class; 
+            $class = __NAMESPACE__.'\\'.$class;
             self::$response = (new $class)->{$method}(self::$response);
         }
         return self::$response;
     }
 
-    public function end($name = null){
-        //Debug::show(__METHOD__);
-        if(is_null(self::$response)){
+    public static function end($name = null){
+        if(is_null(self::$request)){
             return self::$inst;
         }
+        self::$response = new Response;
         if($name !== null){
-            self::$inst->chain($name);
+            self::chain($name);
         }
-        self::$response->set('done', 'OK');
-        self::$response->sets(self::$request->getData());
-        self::$response->sendHeader(true);
-		echo self::$response->output();
+        try {
+            self::$response->set('done', 'OK');
+            self::$response->sets(self::$request->getData());
+            self::$response->sendHeader(true);
+            echo self::$response->output();
+        }catch (\Exception $exception){
+            Debug::show($exception);
+        }
         exit();
     }
 

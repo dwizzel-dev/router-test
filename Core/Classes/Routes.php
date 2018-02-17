@@ -16,25 +16,15 @@ class Routes{
         'home' => '/'
     );
 
-    private function get($key){
+    public static function get($key){
         if(isset(static::$routes[$key])){
-            return static::$routes[$key];
+            return self::$routes[$key];
         }
         return false;
     }
 
-    private function set($key, $value){
-        static::$routes[$key] = $value;
+    public static function set($key, $value){
+        self::$routes[$key] = $value;
     }
 
-    public static function __callStatic($method, $args){
-        switch($method){
-            case 'get':
-                return (new Routes)->get($args[0]);
-            case 'set':
-                return (new Routes)->set($args[0], $args[1]);
-            default:
-                break;        
-        }
-    }
 }

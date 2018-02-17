@@ -16,7 +16,7 @@ class Json{
 		}
 		return false;
 	}
-	static public function decode($json, $assoc = false){
+	static public function decode($json){
 		if (function_exists('json_decode')) {
 			$data = json_decode($json, true);
 			if(json_last_error() != JSON_ERROR_NONE){
