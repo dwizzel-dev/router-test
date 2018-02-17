@@ -7,7 +7,7 @@ else
     vm=$(grep "config.vm.box" -m1 "$vagrant/Vagrantfile" | sed 's/.*"\([a-z].*\)"/\1/')
     echo "Starting $vm"
 fi
-cd $vagrant
+cd ${vagrant}
 echo "Vagrant up"
 vagrant up
 echo "Vagrant ssh"

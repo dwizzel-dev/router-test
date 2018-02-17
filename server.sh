@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 command=$1
 if [ "$command" == "start" ] || [ "$command" == "" ];then
 	sudo systemctl restart nginx.service
